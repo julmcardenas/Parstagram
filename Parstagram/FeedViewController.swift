@@ -11,26 +11,49 @@ import AlamofireImage
 
 class FeedViewController: UIViewController, UITableViewDelegate, UITableViewDataSource {
     
-    
 
     @IBOutlet weak var tableView: UITableView!
-    
     var posts = [PFObject]()
+    let refreshControl = UIRefreshControl()
+    var numberOfPosts: Int!
+    
     
     override func viewDidLoad() {
         super.viewDidLoad()
 
         tableView.delegate = self
         tableView.dataSource = self
-        // Do any additional setup after loading the view.
+        
+        loadPosts()
+        refreshControl.addTarget(self, action: #selector(loadPosts), for: .valueChanged)
+        tableView.refreshControl = refreshControl
+        
     }
     
-    override func viewDidAppear(_ animated: Bool) {
-        super.viewDidAppear(animated)
+    @objc func loadPosts() {
+        numberOfPosts = 20
+        
         // make query from Parse
         let query = PFQuery(className:"Posts")
+        query.order(byDescending: "createdAt")
+        query.limit = numberOfPosts
         query.includeKey("author") // go fetch object
-        query.limit = 20
+        
+        query.findObjectsInBackground { (posts, error) in //get query
+            if posts != nil {
+                self.posts = posts! // store data
+                self.tableView.reloadData() // reload tableView
+                self.refreshControl.endRefreshing()
+            }
+        }
+    }
+    
+    func loadMorePosts() {
+        let query = PFQuery(className:"Posts")
+        query.order(byDescending: "createdAt")
+        numberOfPosts = numberOfPosts + 5
+        
+        query.includeKey("author") // go fetch object
         
         query.findObjectsInBackground { (posts, error) in //get query
             if posts != nil {
@@ -38,7 +61,30 @@ class FeedViewController: UIViewController, UITableViewDelegate, UITableViewData
                 self.tableView.reloadData() // reload tableView
             }
         }
+    
     }
+    
+    func tableView(_ tableView: UITableView, willDisplay cell: UITableViewCell, forRowAt indexPath: IndexPath) {
+        if indexPath.row + 1 == posts.count {
+            loadMorePosts()
+        }
+    }
+    
+//    override func viewDidAppear(_ animated: Bool) {
+//        super.viewDidAppear(animated)
+//        // make query from Parse
+//        let query = PFQuery(className:"Posts")
+//        query.includeKey("author") // go fetch object
+//        query.limit = 30
+//
+//        query.findObjectsInBackground { (posts, error) in //get query
+//            if posts != nil {
+//                self.posts = posts! // store data
+//                self.tableView.reloadData() // reload tableView
+////                self.refreshControl.endRefreshing()
+//            }
+//        }
+//    }
     
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         return posts.count
